@@ -64,7 +64,7 @@ namespace PRoConEvents
             this.PunkbusterPlayerInfoList = new Dictionary<string, CPunkbusterInfo>();
             this.FrostbitePlayerInfoList = new Dictionary<string, CPlayerInfo>();
         */
-        public string version = "2.0.15";
+        public string version = "2.0.16";
         #region globalVars
         private bool bf4db_IsEnabled;
         private bool bf4db_IsValid;
