@@ -122,11 +122,11 @@ namespace PRoConEvents
             String fullPath = "";
             if (Type.GetType("Mono.Runtime") != null)
             {
-                fullPath = Path.GetFullPath(@"Plugins/BF4/BF4DB_API.cs");
+                fullPath = Path.GetFullPath(@"Plugins/BF4/BF4DB_API.dll");
             }
             else
             {
-                fullPath = Path.GetFullPath(@"Plugins\BF4\BF4DB_API.cs");
+                fullPath = Path.GetFullPath(@"Plugins\BF4\BF4DB_API.dll");
             }
 
             Assembly myDllAssembly = Assembly.LoadFrom(fullPath);
@@ -203,7 +203,7 @@ namespace PRoConEvents
 
         public string GetPluginVersion()
         {
-            return "2.0.15";
+            return "2.0.16";
         }
 
         public string GetPluginAuthor()
@@ -257,13 +257,17 @@ namespace PRoConEvents
 
 	<h2>Development</h2>
 	<p>For any support or bug reports please visit our forums <a href=""http://bf4db.com/forum/thread/bf4db-procon-plugin-support-122"">here</a></p>
-		<h3>Changelog</h3>
+	<h3>Changelog</h3>
+	<blockquote>
+		<h4>2.0.16 (03-SEP-2021)</h4>
+		- Log all events to AdKats.<br/>
+        - Create reports for forbidden weapon usages<br/>
+	</blockquote>
 	<blockquote>
 		<h4>2.0.15 (19-JULY-2020)</h4>
 		- Update to kick method.<br/>
 	</blockquote>
-	<h3>Changelog</h3>
-	    <blockquote>
+	<blockquote>
 		<h4>2.0.14 (13-JUNE-2020)</h4>
 		- Added VPN checking, credits to Russao.<br/>
 	</blockquote>
@@ -572,9 +576,7 @@ namespace PRoConEvents
                 string[] dragonsTeeth = { "XP3_MarketPl", "XP3_Prpganda", "XP3_UrbanGdn", "XP3_WtrFront" };
                 string[] finalStand = { "XP4_Arctic", "XP4_SubBase", "XP4_Titan", "XP4_WlkrFtry" };
                 string[] suspectWeapons = {
-					"U_Medkit",
 					"U_Ammobag",
-					"U_PortableMedicpack",
 					"Weapons/Gadgets/SOFLAM/SOFLAM_PDA",
 					"Gameplay/Gadgets/SOFLAM/SOFLAM_Projectile",
 					"U_UGS",
@@ -752,6 +754,7 @@ namespace PRoConEvents
                 String playerName = computedViolation.Groups[3].Value;
                 String encodedMsg = System.Uri.EscapeDataString(strPunkbusterMessage);
                 violationPlayer(playerName, encodedMsg, bf4db_APIKey);
+                logPlayerInformation(playerName, strPunkbusterMessage);
             }
         }
 
@@ -981,6 +984,7 @@ namespace PRoConEvents
 
         public int violationWeapon(String playername, String weapon, String apiKey)
         {
+            reportPlayer(playername, "Suspected forbidden weapon usage: " + weapon);
             try
             {
                 String result = (string)bf4db_API.GetType().GetMethod("violationWeapon").Invoke(bf4db_API, new object[] { (object)playername, (object)weapon, (object)apiKey });
@@ -1188,6 +1192,45 @@ namespace PRoConEvents
                 return null;
             }
         }
+
+        public void reportPlayer(String playername, String msg) 
+        {
+            // AdKats is needed!
+            if (!this.AdKatsIntegration)
+                return;
+
+            var report = new Hashtable {
+                {"caller_identity", "BF4DB"},
+                {"response_requested", false},
+                {"command_type", "player_report"},
+                {"source_name", "BF4DB"},
+                {"target_name", playername},
+                {"record_message", msg}
+            };
+            
+            ExecuteCommand("procon.protected.plugins.call", "AdKats", "IssueCommand", "BF4DB",
+                JSON.JsonEncode(report));
+        }
+
+        public void logPlayerInformation(String playername, String msg) 
+        {
+            // AdKats is needed!
+            if (!this.AdKatsIntegration)
+                return;
+
+            var report = new Hashtable {
+                {"caller_identity", "BF4DB"},
+                {"response_requested", false},
+                {"command_type", "player_log"},
+                {"source_name", "BF4DB"},
+                {"target_name", playername},
+                {"record_message", msg}
+            };
+            
+            ExecuteCommand("procon.protected.plugins.call", "AdKats", "IssueCommand", "BF4DB",
+                JSON.JsonEncode(report));
+        }
+
     } // end BF4DB
 
 } // end namespace PRoConEvents
