@@ -64,7 +64,7 @@ namespace PRoConEvents
             this.PunkbusterPlayerInfoList = new Dictionary<string, CPunkbusterInfo>();
             this.FrostbitePlayerInfoList = new Dictionary<string, CPlayerInfo>();
         */
-        public string version = "2.0.16";
+        public string version = "2.0.17";
         #region globalVars
         private bool bf4db_IsEnabled;
         private bool bf4db_IsValid;
@@ -91,6 +91,7 @@ namespace PRoConEvents
         private Boolean AdKatsIntegration;
         public enum MessageType { Success, Warning, Error, Exception, Normal };
         private string bf4db_currentMap;
+        private string bf4db_currentGameMode = "";
         #endregion
 
         #region Variable setups
@@ -203,7 +204,7 @@ namespace PRoConEvents
 
         public string GetPluginVersion()
         {
-            return "2.0.16";
+            return version;
         }
 
         public string GetPluginAuthor()
@@ -258,6 +259,10 @@ namespace PRoConEvents
 	<h2>Development</h2>
 	<p>For any support or bug reports please visit our forums <a href=""http://bf4db.com/forum/thread/bf4db-procon-plugin-support-122"">here</a></p>
 	<h3>Changelog</h3>
+	<blockquote>
+		<h4>2.0.17 (27-APR-2022)</h4>
+		- Do not create a report for Railgun on GunMaster.<br/>
+	</blockquote>
 	<blockquote>
 		<h4>2.0.16 (03-SEP-2021)</h4>
 		- Log all events to AdKats.<br/>
@@ -512,6 +517,7 @@ namespace PRoConEvents
             if (bf4db_IsValid == true)
             {
                 this.bf4db_currentMap = serverInfo.Map;
+                this.bf4db_currentGameMode = serverInfo.GameMode;
                 ThreadPool.QueueUserWorkItem(new WaitCallback(threadServerUpdate), null);
             }
         }
@@ -984,7 +990,9 @@ namespace PRoConEvents
 
         public int violationWeapon(String playername, String weapon, String apiKey)
         {
-            reportPlayer(playername, "Suspected forbidden weapon usage: " + weapon);
+            if (!(weapon == "U_Railgun" && this.bf4db_currentGameMode.Contains("GunMaster"))) {
+                reportPlayer(playername, "Suspected forbidden weapon usage: " + weapon  + " (" + this.bf4db_currentMap + "/" + this.bf4db_currentGameMode + ")");
+            }
             try
             {
                 String result = (string)bf4db_API.GetType().GetMethod("violationWeapon").Invoke(bf4db_API, new object[] { (object)playername, (object)weapon, (object)apiKey });
