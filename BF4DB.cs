@@ -64,13 +64,15 @@ namespace PRoConEvents
             this.PunkbusterPlayerInfoList = new Dictionary<string, CPunkbusterInfo>();
             this.FrostbitePlayerInfoList = new Dictionary<string, CPlayerInfo>();
         */
-        public string version = "2.0.17";
+        public string version = "2.0.16";
         #region globalVars
         private bool bf4db_IsEnabled;
         private bool bf4db_IsValid;
         private int bf4db_DebugLevel;
         private String bf4db_APIKey;
 		enumBoolYesNo bf4db_EnableVPNKick;
+        enumBoolYesNo bf4db_EnableGlitchKick;
+        enumBoolYesNo bf4db_EnableHackedKick;
         enumBoolYesNo bf4db_EnableAutoBan;
         enumBoolYesNo bf4db_EnableAnnouncements;
         enumBoolYesNo bf4db_EnableCleanAnnouncements;
@@ -101,6 +103,8 @@ namespace PRoConEvents
             this.bf4db_IsValid = false;
             this.bf4db_APIKey = "";
 			this.bf4db_EnableVPNKick = enumBoolYesNo.No;
+            this.bf4db_EnableGlitchKick = enumBoolYesNo.No;
+            this.bf4db_EnableHackedKick = enumBoolYesNo.Yes;
             this.bf4db_EnableAutoBan = enumBoolYesNo.Yes;
             this.bf4db_EnableAnnouncements = enumBoolYesNo.Yes;
             this.bf4db_EnableCleanAnnouncements = enumBoolYesNo.No;
@@ -241,6 +245,15 @@ namespace PRoConEvents
 	<h4>Enable Auto Bans - </h4>
 	<p>When set to Yes, any players banned on BF4DB will be removed from your server. Defaults to Yes.</p>
 	<br/>
+    <h4>Enable VPN Kicks - </h4>
+	<p>When set to Yes, any players using a VPN will be removed from your server. Defaults to No.</p>
+	<br/>
+    <h4>Enable Glitcher Kicks - </h4>
+	<p>When set to Yes, any players marked as a glitcher on BF4DB will be removed from your server. Defaults to No.</p>
+	<br/>
+    <h4>Enable Hacked Account Kicks - </h4>
+	<p>When set to Yes, any players marked as a hacked account on BF4DB will be removed from your server. Defaults to Yes.</p>
+	<br/>
 	<h4>Enable Announcements - </h4>
 	<p>When set to Yes, player status during verification will be announced in chat. Defaults to Yes.</p>
 	<br/>
@@ -260,15 +273,14 @@ namespace PRoConEvents
 	<p>For any support or bug reports please visit our forums <a href=""http://bf4db.com/forum/thread/bf4db-procon-plugin-support-122"">here</a></p>
 	<h3>Changelog</h3>
 	<blockquote>
-		<h4>2.0.17 (27-APR-2022)</h4>
+		<h4>2.0.16 (11-FEB-2023)</h4>
+        - Added kick option for glitchers.<br/>
+        - Added kick option for hacked accounts.<br/>
 		- Do not create a report for Railgun on GunMaster.<br/>
-	</blockquote>
-	<blockquote>
-		<h4>2.0.16 (03-SEP-2021)</h4>
 		- Log all events to AdKats.<br/>
         - Create reports for forbidden weapon usages<br/>
 	</blockquote>
-	<blockquote>
+    <blockquote>
 		<h4>2.0.15 (19-JULY-2020)</h4>
 		- Update to kick method.<br/>
 	</blockquote>
@@ -339,6 +351,8 @@ namespace PRoConEvents
 
             lstReturn.Add(new CPluginVariable("API Key", bf4db_APIKey.GetType(), this.bf4db_APIKey));			
 			lstReturn.Add(new CPluginVariable("Enable VPN Kick", typeof(enumBoolYesNo), this.bf4db_EnableVPNKick));
+            lstReturn.Add(new CPluginVariable("Enable Glitcher Kick", typeof(enumBoolYesNo), this.bf4db_EnableGlitchKick));
+            lstReturn.Add(new CPluginVariable("Enable Hacked Account Kick", typeof(enumBoolYesNo), this.bf4db_EnableHackedKick));
             lstReturn.Add(new CPluginVariable("Enable Auto Bans", typeof(enumBoolYesNo), this.bf4db_EnableAutoBan));
             lstReturn.Add(new CPluginVariable("Enable Cheat Announcements", typeof(enumBoolYesNo), this.bf4db_EnableAnnouncements));
             lstReturn.Add(new CPluginVariable("Enable Clean Announcements", typeof(enumBoolYesNo), this.bf4db_EnableCleanAnnouncements));
@@ -364,6 +378,14 @@ namespace PRoConEvents
 			if (strVariable.CompareTo("Enable VPN Kick") == 0 && Enum.IsDefined(typeof(enumBoolYesNo), strValue) == true)
             {
                 this.bf4db_EnableVPNKick = (enumBoolYesNo)Enum.Parse(typeof(enumBoolYesNo), strValue);
+            }
+            if (strVariable.CompareTo("Enable Glitcher Kick") == 0 && Enum.IsDefined(typeof(enumBoolYesNo), strValue) == true)
+            {
+                this.bf4db_EnableGlitchKick = (enumBoolYesNo)Enum.Parse(typeof(enumBoolYesNo), strValue);
+            }
+            if (strVariable.CompareTo("Enable Hacked Account Kick") == 0 && Enum.IsDefined(typeof(enumBoolYesNo), strValue) == true)
+            {
+                this.bf4db_EnableHackedKick = (enumBoolYesNo)Enum.Parse(typeof(enumBoolYesNo), strValue);
             }
             if (strVariable.CompareTo("Enable Auto Bans") == 0 && Enum.IsDefined(typeof(enumBoolYesNo), strValue) == true)
             {
@@ -1053,29 +1075,43 @@ namespace PRoConEvents
                     }
                 }
 
-                if (checkStatus == 1)
+                if (checkStatus == 1 || checkStatus == 4)
                 {
+                    bool needsKick = false;
+                    
+                    if (checkStatus == 1 && checkReason != "Hacked Account" && bf4db_EnableAutoBan == enumBoolYesNo.Yes) {
+                        needsKick = true;
+                    }
+
+                    if (checkStatus == 4 && bf4db_EnableGlitchKick == enumBoolYesNo.Yes) {
+                        needsKick = true;
+                    }
+
+                    if (checkReason == "Hacked Account" && bf4db_EnableHackedKick == enumBoolYesNo.Yes) {
+                        needsKick = true;
+                    }
+
                     if (!bf4db_whitelist.Contains(playername))
                     {
                         if (bf4db_ServerType != 1)
                         {
-                            if (bf4db_EnableAnnouncements == enumBoolYesNo.Yes)
+                            if (bf4db_EnableAnnouncements == enumBoolYesNo.Yes && needsKick)
                             {
                                 ExecuteCommand("procon.protected.send", "admin.say", "[BF4DB] " + playername + " is banned for " + checkReason, "all");
                             }
-                            if (bf4db_EnableAutoBan == enumBoolYesNo.Yes)
+                            if (needsKick)
                             {
                                 if (AdKatsIntegration)
                                 {
                                     ExecuteCommand("procon.protected.plugins.call", "AdKats", "IssueCommand", "BF4DB", JSON.JsonEncode(new Hashtable {
-                                {"caller_identity", "BF4DB"},
-                                {"response_requested", false},
-                                {"command_type", "player_kick"},
-                                {"source_name", "BF4DB"},
-                                {"target_name", playername},
-                                {"target_guid", guid},
-                                {"record_message", "[BF4DB] " + checkReason + @". Appeal at https://bf4db.com/player/ban/" + checkID}
-                            }));
+                                        {"caller_identity", "BF4DB"},
+                                        {"response_requested", false},
+                                        {"command_type", "player_kick"},
+                                        {"source_name", "BF4DB"},
+                                        {"target_name", playername},
+                                        {"target_guid", guid},
+                                        {"record_message", "[BF4DB] " + checkReason + @". Appeal at https://bf4db.com/player/ban/" + checkID}
+                                    }));
 
                                     //Just to make sure
                                     System.Threading.Thread.Sleep(1000);
